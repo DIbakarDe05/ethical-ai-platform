@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   Ethical AI Platform - Global Styles
+   ======================================== */
+
+/* Base Layer - Root styling */
+@layer base {
+  :root {
+    --foreground-rgb: 17, 20, 24;
+    --background-rgb: 246, 247, 248;
+    --primary-rgb: 19, 127, 236;
+  }
+
+  html.dark {
+    --foreground-rgb: 255, 255, 255;
+    --background-rgb: 16, 25, 34;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply antialiased;
+    color: rgb(var(--foreground-rgb));
+    background: rgb(var(--background-rgb));
+    min-height: 100vh;
+  }
+
+  /* Improved focus states for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+/* Component Layer */
+@layer components {
+  /* Primary button style */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 px-5 py-3 
+           bg-primary hover:bg-primary-600 
+           text-white font-semibold rounded-full
+           transition-all duration-200 
+           shadow-primary hover:shadow-lg
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary button style */
+  .btn-secondary {
+    @apply flex items-center justify-center gap-2 px-5 py-3
+           bg-gray-100 dark:bg-gray-800 
+           text-gray-900 dark:text-white 
+           font-semibold rounded-full
+           hover:bg-gray-200 dark:hover:bg-gray-700
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Card component */
+  .card {
+    @apply bg-white dark:bg-surface-dark 
+           rounded-xl shadow-card 
+           border border-gray-100 dark:border-gray-700
+           transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:border-primary/50 hover:shadow-soft cursor-pointer;
+  }
+
+  /* Input field styling */
+  .input-field {
+    @apply w-full px-4 py-3 
+           bg-gray-50 dark:bg-gray-800 
+           border border-gray-200 dark:border-gray-700 
+           rounded-xl
+           text-gray-900 dark:text-white 
+           placeholder:text-gray-400 dark:placeholder:text-gray-500
+           focus:ring-2 focus:ring-primary/20 focus:border-primary
+           transition-all duration-200 outline-none;
+  }
+
+  /* Chip/Tag component */
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 
+           rounded-full text-sm font-medium
+           bg-gray-100 dark:bg-gray-800 
+           text-gray-600 dark:text-gray-300
+           border border-gray-200 dark:border-gray-700
+           transition-colors duration-200;
+  }
+
+  .chip-active {
+    @apply bg-primary text-white border-primary shadow-sm;
+  }
+
+  /* AI message bubble */
+  .message-ai {
+    @apply bg-gray-100 dark:bg-gray-800 
+           text-gray-800 dark:text-gray-100 
+           rounded-2xl rounded-tl-none 
+           p-4;
+  }
+
+  /* User message bubble */
+  .message-user {
+    @apply bg-primary text-white 
+           rounded-2xl rounded-tr-none 
+           p-4 shadow-sm;
+  }
+
+  /* Citation badge */
+  .citation-badge {
+    @apply inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 
+           rounded bg-primary/10 hover:bg-primary/20 
+           text-primary dark:text-blue-400 
+           text-xs font-medium 
+           transition-colors cursor-pointer 
+           border border-primary/20;
+  }
+
+  /* Stats card */
+  .stats-card {
+    @apply card p-5 flex flex-col justify-between 
+           relative overflow-hidden group;
+  }
+
+  /* Sidebar link */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 
+           rounded-lg text-gray-600 dark:text-gray-300
+           hover:bg-gray-100 dark:hover:bg-gray-800
+           transition-colors duration-200;
+  }
+
+  .sidebar-link-active {
+    @apply sidebar-link bg-primary/10 text-primary font-medium;
+  }
+
+  /* Page section */
+  .section {
+    @apply px-4 py-6 lg:px-8;
+  }
+}
+
+/* Utility Layer */
+@layer utilities {
+  /* Hide scrollbar utility */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Custom scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-md;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent;
+  }
+
+  /* Animated gradient background */
+  .gradient-bg {
+    @apply bg-gradient-to-br from-primary via-blue-600 to-indigo-700;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    @apply animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 
+           dark:from-gray-700 dark:via-gray-600 dark:to-gray-700;
+  }
+
+  /* Line clamp for text truncation */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Safe area padding for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Typing indicator dots */
+.typing-dots span {
+  animation: typingDots 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingDots {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}

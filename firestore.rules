@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+      // Users can create their own profile on first sign-in
+      allow create: if isOwner(userId);
+      // Only admins can update roles, users can update their own non-role fields
+      allow update: if isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      // Only admins can delete users
+      allow delete: if isAdmin();
+      
+      // Admins can read all user profiles
+      allow read: if isAdmin();
+      // Admins can update any user (including role)
+      allow update: if isAdmin();
+    }
+    
+    // Documents collection (knowledge base)
+    match /documents/{documentId} {
+      // Anyone can read approved documents
+      allow read: if resource.data.status == 'approved';
+      // Authenticated users can read pending documents
+      allow read: if isAuthenticated() && resource.data.status == 'pending';
+      // Only admins can create documents
+      allow create: if isAdmin();
+      // Only admins can update documents (approve, edit, etc.)
+      allow update: if isAdmin();
+      // Only admins can delete documents
+      allow delete: if isAdmin();
+      
+      // Document chunks (for RAG)
+      match /chunks/{chunkId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+    
+    // Chat sessions
+    match /chatSessions/{sessionId} {
+      // Users can read and write their own sessions
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can create new sessions for themselves
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Chat messages within a session
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && 
+          get(/databases/$(database)/documents/chatSessions/$(sessionId)).data.userId == request.auth.uid;
+      }
+    }
+    
+    // Feedback and reports
+    match /feedback/{feedbackId} {
+      // Anyone can create feedback (including anonymous)
+      allow create: if true;
+      // Only admins can read feedback
+      allow read: if isAdmin();
+      // Only admins can update feedback status
+      allow update: if isAdmin();
+      // Only admins can delete feedback
+      allow delete: if isAdmin();
+    }
+    
+    // Analytics (read-only for admins)
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only Cloud Functions can write
+    }
+    
+    // System configuration
+    match /config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Audit logs (append-only, admin read)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Logs are immutable
+    }
+  }
+}
