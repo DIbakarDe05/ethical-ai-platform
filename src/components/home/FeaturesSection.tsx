@@ -54,10 +54,6 @@ export function FeaturesSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-16">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <Icon name="auto_awesome" size="sm" />
-            Powered by Gemini 1.5 Flash
-          </span>
           <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Everything You Need for Ethical AI
           </h2>
