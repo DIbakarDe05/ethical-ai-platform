@@ -109,7 +109,7 @@ export function EthicsContent() {
       {/* Principles */}
       <div className="space-y-6 mb-12">
         {principles.map((principle) => (
-          <Card key={principle.id} padding="lg" className="group">
+          <Card key={principle.id} padding="lg" hover className="group">
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Icon name={principle.icon} className="text-primary" size="lg" />
@@ -121,7 +121,7 @@ export function EthicsContent() {
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                   {principle.description}
                 </p>
-                
+
                 {principle.badges && (
                   <div className="flex flex-wrap gap-2 mt-4">
                     {principle.badges.map((badge) => (
@@ -131,7 +131,7 @@ export function EthicsContent() {
                     ))}
                   </div>
                 )}
-                
+
                 {principle.link && (
                   <button className="flex items-center gap-1 mt-4 text-primary text-sm font-semibold group-hover:gap-2 transition-all">
                     {principle.link}
@@ -145,7 +145,7 @@ export function EthicsContent() {
       </div>
 
       {/* AI Limitations Section */}
-      <Card padding="lg" className="mb-8 bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800">
+      <Card padding="lg" hover className="mb-8 bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30">
             <Icon name="warning" className="text-orange-600" size="lg" />
@@ -183,7 +183,7 @@ export function EthicsContent() {
       </Card>
 
       {/* Data Contribution Toggle */}
-      <Card padding="lg" className="mb-8">
+      <Card padding="lg" hover className="mb-8">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
@@ -193,7 +193,7 @@ export function EthicsContent() {
               Allow anonymized usage data to be used for training future models to improve accuracy.
             </p>
           </div>
-          
+
           {/* Toggle switch */}
           <button
             onClick={() => setDataContribution(!dataContribution)}
@@ -210,7 +210,7 @@ export function EthicsContent() {
             />
           </button>
         </div>
-        
+
         <div className="border-t border-gray-100 dark:border-gray-700 mt-4 pt-4">
           <p className="text-xs text-gray-400 dark:text-gray-500 italic">
             Note: Opting out does not affect your ability to use the platform's core features.
@@ -219,7 +219,7 @@ export function EthicsContent() {
       </Card>
 
       {/* Feedback Form */}
-      <Card padding="lg" className="mb-8">
+      <Card padding="lg" hover className="mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Icon name="report" size="lg" className="text-gray-500" />
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">
