@@ -42,17 +42,17 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-background-light dark:bg-background-dark">
       <Navbar />
-      
+
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative overflow-hidden">
           {/* Background gradient */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5" />
-          
+
           {/* Decorative elements */}
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-          
+
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               {/* Hero Text */}
@@ -71,7 +71,7 @@ export default function HomePage() {
                 </h1>
 
                 <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-xl mx-auto lg:mx-0">
-                  Streamline operations and automate queries for your social organization 
+                  Streamline operations and automate queries for your social organization
                   securely. Built with privacy, transparency, and human oversight at its core.
                 </p>
 
@@ -83,9 +83,9 @@ export default function HomePage() {
                     </Button>
                   </Link>
                   <Link href="/knowledge-base">
-                    <Button 
-                      size="lg" 
-                      variant="secondary" 
+                    <Button
+                      size="lg"
+                      variant="secondary"
                       icon="library_books"
                       className="w-full sm:w-auto"
                     >
@@ -131,8 +131,16 @@ export default function HomePage() {
         <FeaturesSection />
 
         {/* Ethics & Trust Section */}
-        <section className="py-16 lg:py-24 bg-gradient-to-br from-primary via-blue-600 to-indigo-700">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="py-16 lg:py-24 relative overflow-hidden">
+          {/* Softer gradient overlay that blends with main background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-blue-600/70 to-indigo-700/80 backdrop-blur-sm" />
+          {/* Subtle animated gradient orbs for continuity */}
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-10 left-20 w-64 h-64 bg-white/20 rounded-full blur-3xl" />
+            <div className="absolute bottom-10 right-20 w-80 h-80 bg-indigo-300/20 rounded-full blur-3xl" />
+          </div>
+
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="text-white">
                 <Badge variant="primary" className="bg-white/20 text-white border-white/30 mb-4">
@@ -142,7 +150,7 @@ export default function HomePage() {
                   Ethics & Transparency at the Core
                 </h2>
                 <p className="text-lg text-blue-100 mb-8">
-                  Our platform strictly adheres to the UNESCO Recommendation on the Ethics 
+                  Our platform strictly adheres to the UNESCO Recommendation on the Ethics
                   of Artificial Intelligence, prioritizing human rights, fairness, and transparency.
                 </p>
 
@@ -153,8 +161,8 @@ export default function HomePage() {
                     { icon: 'visibility', title: 'Transparency', desc: 'Full audit trails' },
                     { icon: 'person', title: 'Human Oversight', desc: 'Human-in-the-loop for sensitive queries' },
                   ].map(({ icon, title, desc }) => (
-                    <div key={title} className="flex items-start gap-4">
-                      <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-white/20">
+                    <div key={title} className="flex items-start gap-4 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-white/20 backdrop-blur-sm">
                         <Icon name={icon} className="text-white" />
                       </div>
                       <div>
@@ -166,9 +174,9 @@ export default function HomePage() {
                 </div>
 
                 <Link href="/ethics" className="inline-block mt-8">
-                  <Button 
-                    variant="secondary" 
-                    className="bg-white text-primary hover:bg-blue-50"
+                  <Button
+                    variant="secondary"
+                    className="bg-white/90 text-primary hover:bg-white backdrop-blur-sm"
                     icon="arrow_forward"
                     iconPosition="right"
                   >
@@ -179,18 +187,18 @@ export default function HomePage() {
 
               {/* Ethics illustration */}
               <div className="relative hidden lg:block">
-                <div className="absolute inset-0 bg-white/10 rounded-3xl backdrop-blur-sm" />
+                <div className="absolute inset-0 bg-white/10 rounded-3xl backdrop-blur-md border border-white/20" />
                 <div className="relative p-8">
                   <div className="flex items-center justify-center">
                     <div className="relative">
-                      <div className="h-48 w-48 rounded-full bg-white/20 flex items-center justify-center animate-float">
+                      <div className="h-48 w-48 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center animate-float border border-white/30">
                         <Icon name="public" size="2xl" className="text-white text-6xl" />
                       </div>
                       {/* Orbiting elements */}
-                      <div className="absolute -top-4 -right-4 h-16 w-16 rounded-full bg-white/30 flex items-center justify-center">
+                      <div className="absolute -top-4 -right-4 h-16 w-16 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center border border-white/40">
                         <Icon name="verified_user" className="text-white" />
                       </div>
-                      <div className="absolute -bottom-4 -left-4 h-12 w-12 rounded-full bg-white/30 flex items-center justify-center">
+                      <div className="absolute -bottom-4 -left-4 h-12 w-12 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center border border-white/40">
                         <Icon name="lock" className="text-white" size="md" />
                       </div>
                     </div>
@@ -208,7 +216,7 @@ export default function HomePage() {
               Ready to Transform Your NGO?
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
-              Join hundreds of social organizations already using our ethical AI platform 
+              Join hundreds of social organizations already using our ethical AI platform
               to automate queries and reduce staff workload.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -218,9 +226,9 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link href="/contact">
-                <Button 
-                  size="lg" 
-                  variant="outline" 
+                <Button
+                  size="lg"
+                  variant="outline"
                   icon="mail"
                   className="w-full sm:w-auto"
                 >
