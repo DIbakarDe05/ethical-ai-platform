@@ -4,9 +4,10 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { BackgroundWrapper } from '@/components/layout/BackgroundWrapper';
 
 // Load Inter font with Latin subset
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
@@ -70,17 +71,17 @@ export default function RootLayout({
         {/* Preconnect to Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
+
         {/* Material Symbols for icons */}
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" 
-          rel="stylesheet" 
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
         />
-        
+
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        
+
         {/* Theme color for mobile browsers */}
         <meta name="theme-color" content="#137fec" />
       </head>
@@ -88,7 +89,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             {/* Toast notification container */}
-            <Toaster 
+            <Toaster
               position="top-center"
               toastOptions={{
                 duration: 4000,
@@ -111,9 +112,10 @@ export default function RootLayout({
                 },
               }}
             />
-            
             {/* Main application content */}
-            {children}
+            <BackgroundWrapper>
+              {children}
+            </BackgroundWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>
