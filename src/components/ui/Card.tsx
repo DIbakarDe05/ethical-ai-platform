@@ -34,8 +34,19 @@ export function Card({
       className={cn(
         'bg-white dark:bg-surface-dark rounded-xl shadow-card',
         'border border-gray-100 dark:border-gray-700',
-        'transition-all duration-200',
-        hover && 'hover:border-primary/50 hover:shadow-soft cursor-pointer',
+        'transition-all duration-300 ease-out',
+        hover && [
+          'cursor-pointer',
+          // Translucent glassmorphism effect on hover
+          'hover:bg-white/90 dark:hover:bg-surface-dark/80',
+          'hover:backdrop-blur-sm',
+          // Glowing border effect
+          'hover:border-primary/60 hover:shadow-lg hover:shadow-primary/20',
+          // Subtle scale transform
+          'hover:scale-[1.02] hover:-translate-y-1',
+          // Ring glow effect
+          'hover:ring-1 hover:ring-primary/20',
+        ],
         paddingClasses[padding],
         className
       )}

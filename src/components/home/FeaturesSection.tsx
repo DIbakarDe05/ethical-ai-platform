@@ -62,7 +62,7 @@ export function FeaturesSection() {
             Everything You Need for Ethical AI
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-            A complete platform designed specifically for NGOs and social organizations, 
+            A complete platform designed specifically for NGOs and social organizations,
             with built-in privacy controls and ethical AI practices.
           </p>
         </div>
@@ -99,9 +99,9 @@ export function FeaturesSection() {
             {capabilities.map(({ icon, label }) => (
               <div
                 key={label}
-                className="flex flex-col items-center gap-3 p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-700"
+                className="flex flex-col items-center gap-3 p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-700 transition-all duration-300 ease-out cursor-pointer hover:bg-white/90 dark:hover:bg-surface-dark/80 hover:backdrop-blur-sm hover:border-primary/50 hover:shadow-lg hover:shadow-primary/15 hover:scale-105 hover:-translate-y-1 hover:ring-1 hover:ring-primary/20"
               >
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                   <Icon name={icon} className="text-primary" size="md" />
                 </div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">
