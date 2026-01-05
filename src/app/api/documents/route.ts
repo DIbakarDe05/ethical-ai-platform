@@ -2,9 +2,28 @@
  * Documents API Route
  * 
  * Handles document CRUD operations for the knowledge base.
+ * 
+ * SECURITY FEATURES:
+ * - Authentication required for write operations
+ * - Admin role required for create/delete
+ * - Rate limiting (10 requests per minute for writes)
+ * - Input validation with Zod
+ * - Safe error responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  authenticateRequest,
+  checkRateLimit,
+  getClientIdentifier,
+  rateLimitResponse,
+  errorResponse,
+  unauthorizedResponse,
+  forbiddenResponse,
+  isAdminUser,
+  RATE_LIMITS,
+} from '@/lib/api/auth';
+import { documentUploadSchema, documentIdSchema, validateInput } from '@/lib/validation';
 
 // Demo documents for development
 const demoDocuments = [
@@ -96,12 +115,20 @@ const demoDocuments = [
 
 export async function GET(request: NextRequest) {
   try {
+    const clientId = getClientIdentifier(request);
+
+    // Rate limiting for read operations (more permissive)
+    const rateLimit = checkRateLimit(clientId, RATE_LIMITS.default);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetIn);
+    }
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
     const category = searchParams.get('category') || '';
     const status = searchParams.get('status') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)));
 
     let filteredDocs = [...demoDocuments];
 
@@ -138,47 +165,76 @@ export async function GET(request: NextRequest) {
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Documents API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch documents', details: error.message },
-      { status: 500 }
+    return errorResponse(
+      'Failed to fetch documents',
+      error instanceof Error ? error : undefined
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { title, description, category, tags, content } = body;
+    // Authentication required for creating documents
+    const authResult = await authenticateRequest(request);
+    if (!authResult.authenticated) {
+      return unauthorizedResponse('Authentication required to upload documents');
+    }
 
-    if (!title || !category) {
+    // Admin role required
+    if (!isAdminUser(authResult)) {
+      return forbiddenResponse('Admin role required to upload documents');
+    }
+
+    const clientId = getClientIdentifier(request, authResult.userId);
+
+    // Rate limiting for write operations (more restrictive)
+    const rateLimit = checkRateLimit(clientId, RATE_LIMITS.documents);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetIn);
+    }
+
+    // Parse and validate input
+    let body;
+    try {
+      body = await request.json();
+    } catch {
       return NextResponse.json(
-        { error: 'Title and category are required' },
+        { error: 'Invalid JSON body' },
         { status: 400 }
       );
     }
 
+    const validation = validateInput(documentUploadSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { title, description, category, tags, content } = validation.data;
+
     // In production, this would:
-    // 1. Validate the user's authentication and admin role
-    // 2. Upload file to Firebase Storage
-    // 3. Extract text content for indexing
-    // 4. Create embeddings for vector search
-    // 5. Store metadata in Firestore
+    // 1. Upload file to Firebase Storage
+    // 2. Extract text content for indexing
+    // 3. Create embeddings for vector search
+    // 4. Store metadata in Firestore
 
     const newDocument = {
       id: Date.now().toString(),
       title,
-      description: description || '',
+      description,
       category,
       status: 'pending',
-      uploadedBy: 'current-user@example.com',
+      uploadedBy: authResult.userId,
       uploadedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
-      fileSize: 0,
+      fileSize: content?.length || 0,
       fileType: 'application/pdf',
       downloadCount: 0,
-      tags: tags || [],
+      tags,
     };
 
     return NextResponse.json({
@@ -187,23 +243,43 @@ export async function POST(request: NextRequest) {
       message: 'Document uploaded successfully. Pending admin approval.',
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Document upload error:', error);
-    return NextResponse.json(
-      { error: 'Failed to upload document', details: error.message },
-      { status: 500 }
+    return errorResponse(
+      'Failed to upload document',
+      error instanceof Error ? error : undefined
     );
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Authentication required for deleting documents
+    const authResult = await authenticateRequest(request);
+    if (!authResult.authenticated) {
+      return unauthorizedResponse('Authentication required to delete documents');
+    }
+
+    // Admin role required
+    if (!isAdminUser(authResult)) {
+      return forbiddenResponse('Admin role required to delete documents');
+    }
+
+    const clientId = getClientIdentifier(request, authResult.userId);
+
+    // Rate limiting for write operations
+    const rateLimit = checkRateLimit(clientId, RATE_LIMITS.documents);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetIn);
+    }
+
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('id');
 
-    if (!documentId) {
+    const validation = validateInput(documentIdSchema, { id: documentId });
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Document ID is required' },
+        { error: 'Invalid document ID', details: validation.error },
         { status: 400 }
       );
     }
@@ -219,11 +295,11 @@ export async function DELETE(request: NextRequest) {
       message: `Document ${documentId} deleted successfully.`,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Document deletion error:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete document', details: error.message },
-      { status: 500 }
+    return errorResponse(
+      'Failed to delete document',
+      error instanceof Error ? error : undefined
     );
   }
 }

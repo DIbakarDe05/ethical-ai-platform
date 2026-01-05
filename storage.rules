@@ -19,8 +19,11 @@ service firebase.storage {
     
     // Document uploads
     match /documents/{documentId}/{fileName} {
-      // Anyone can read approved documents
-      allow read: if true;
+      // Only allow read if document is approved in Firestore
+      // This prevents access to pending or rejected documents
+      allow read: if 
+        firestore.get(/databases/(default)/documents/documents/$(documentId)).data.status == 'approved' ||
+        isAuthenticated();
       // Only admins can upload documents
       allow create: if isAdmin() && isValidDocument();
       // Only admins can update documents

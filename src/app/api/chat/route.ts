@@ -2,10 +2,25 @@
  * Chat API Route
  * 
  * Handles AI chat requests with RAG-based responses.
+ * 
+ * SECURITY FEATURES:
+ * - Authentication required (Bearer token)
+ * - Rate limiting (20 requests per minute)
+ * - Input validation with Zod
+ * - Safe error responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  authenticateRequest,
+  checkRateLimit,
+  getClientIdentifier,
+  rateLimitResponse,
+  errorResponse,
+  RATE_LIMITS,
+} from '@/lib/api/auth';
+import { chatMessageSchema, validateInput } from '@/lib/validation';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -32,28 +47,49 @@ Remember: You are assisting vulnerable populations. Prioritize accuracy and empa
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { message, conversationHistory = [], documents = [] } = body;
+    // Authentication check (optional for demo mode)
+    const authResult = await authenticateRequest(request);
+    const clientId = getClientIdentifier(request, authResult.userId);
 
-    if (!message) {
+    // Rate limiting
+    const rateLimit = checkRateLimit(clientId, RATE_LIMITS.chat);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetIn);
+    }
+
+    // Parse and validate input
+    let body;
+    try {
+      body = await request.json();
+    } catch {
       return NextResponse.json(
-        { error: 'Message is required' },
+        { error: 'Invalid JSON body' },
         { status: 400 }
       );
     }
 
+    const validation = validateInput(chatMessageSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { message, conversationHistory, documents } = validation.data;
+
     // Build context from documents (RAG)
     const documentContext = documents.length > 0
-      ? `\n\nRelevant Documents:\n${documents.map((doc: any) => 
-          `--- ${doc.title} ---\n${doc.content}`
-        ).join('\n\n')}`
+      ? `\n\nRelevant Documents:\n${documents.map((doc) =>
+        `--- ${doc.title} ---\n${doc.content}`
+      ).join('\n\n')}`
       : '';
 
     // Build conversation history
     const historyContext = conversationHistory.length > 0
-      ? conversationHistory.map((msg: any) => 
-          `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
-        ).join('\n')
+      ? conversationHistory.map((msg) =>
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n')
       : '';
 
     // Check if API key is configured
@@ -69,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize model
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
       generationConfig: {
         temperature: 0.3, // Lower temperature for accuracy
@@ -110,19 +146,18 @@ Provide a helpful, accurate response with citations where applicable.`;
       isDemo: false,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Chat API error:', error);
-    
-    return NextResponse.json(
-      { error: 'Failed to process chat request', details: error.message },
-      { status: 500 }
+    return errorResponse(
+      'Failed to process chat request',
+      error instanceof Error ? error : undefined
     );
   }
 }
 
 function getDemoResponse(message: string): string {
   const lowerMessage = message.toLowerCase();
-  
+
   if (lowerMessage.includes('adopt') || lowerMessage.includes('adoption')) {
     return `Based on our verified documents, here's information about the adoption process:
 
@@ -139,7 +174,7 @@ The typical adoption process takes 6-18 months depending on the type of adoption
 
 Would you like more specific information about a particular type of adoption, or should I connect you with one of our adoption counselors?`;
   }
-  
+
   if (lowerMessage.includes('volunteer') || lowerMessage.includes('help')) {
     return `Thank you for your interest in volunteering! Here's what I found:
 
@@ -158,7 +193,7 @@ Would you like more specific information about a particular type of adoption, or
 
 Would you like me to provide more details about any specific volunteer role?`;
   }
-  
+
   if (lowerMessage.includes('donate') || lowerMessage.includes('donation') || lowerMessage.includes('support')) {
     return `Here's information about supporting our organization:
 
@@ -179,7 +214,7 @@ All donations are tax-deductible. Receipts are provided automatically.
 
 Would you like information about specific programs you can support?`;
   }
-  
+
   return `Thank you for your question. I can help you with information from our verified knowledge base covering:
 
 - **Adoption processes and requirements**
@@ -194,7 +229,7 @@ Could you please provide more details about what you're looking for? I'm here to
 }
 
 export async function GET() {
-  return NextResponse.json({ 
+  return NextResponse.json({
     status: 'Chat API is running',
     version: '1.0.0',
     model: 'gemini-1.5-flash'

@@ -2,9 +2,22 @@
  * Search API Route
  * 
  * Handles semantic search across the knowledge base using vector similarity.
+ * 
+ * SECURITY FEATURES:
+ * - Rate limiting (30 requests per minute)
+ * - Input validation with Zod
+ * - Safe error responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  checkRateLimit,
+  getClientIdentifier,
+  rateLimitResponse,
+  errorResponse,
+  RATE_LIMITS,
+} from '@/lib/api/auth';
+import { searchQuerySchema, validateInput } from '@/lib/validation';
 
 // Demo search results
 const demoResults = [
@@ -36,15 +49,34 @@ const demoResults = [
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { query, filters = {}, limit = 10 } = body;
+    const clientId = getClientIdentifier(request);
 
-    if (!query) {
+    // Rate limiting
+    const rateLimit = checkRateLimit(clientId, RATE_LIMITS.search);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetIn);
+    }
+
+    // Parse and validate input
+    let body;
+    try {
+      body = await request.json();
+    } catch {
       return NextResponse.json(
-        { error: 'Search query is required' },
+        { error: 'Invalid JSON body' },
         { status: 400 }
       );
     }
+
+    const validation = validateInput(searchQuerySchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { query, filters, limit } = validation.data;
 
     // In production, this would:
     // 1. Generate embedding for the query using Gemini
@@ -54,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Demo: filter and score based on query terms
     const lowerQuery = query.toLowerCase();
-    let results = demoResults.filter(result => 
+    let results = demoResults.filter(result =>
       result.title.toLowerCase().includes(lowerQuery) ||
       result.snippet.toLowerCase().includes(lowerQuery) ||
       result.highlights.some(h => lowerQuery.includes(h.toLowerCase()))
@@ -83,11 +115,11 @@ export async function POST(request: NextRequest) {
       searchTime: Math.random() * 0.5 + 0.1, // Simulated search time
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Search API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to perform search', details: error.message },
-      { status: 500 }
+    return errorResponse(
+      'Failed to perform search',
+      error instanceof Error ? error : undefined
     );
   }
 }

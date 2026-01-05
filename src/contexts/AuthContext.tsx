@@ -14,10 +14,15 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   UserCredential,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider, microsoftProvider, COLLECTIONS, USER_ROLES, UserRole } from '@/lib/firebase/config';
 import toast from 'react-hot-toast';
+
 
 /**
  * Extended user profile stored in Firestore
@@ -46,20 +51,24 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  
+
   // Authentication methods
   signInWithGoogle: () => Promise<UserCredential | null>;
   signInWithMicrosoft: () => Promise<UserCredential | null>;
+  signInWithEmail: (email: string, password: string) => Promise<UserCredential | null>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<UserCredential | null>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
-  
+
   // Role checks
   isAdmin: boolean;
   isAuthenticated: boolean;
-  
+
   // Profile management
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
 }
+
 
 // Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -165,6 +174,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
+   * Sign in with Email/Password
+   */
+  const signInWithEmail = async (email: string, password: string): Promise<UserCredential | null> => {
+    try {
+      setLoading(true);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const profile = await fetchOrCreateUserProfile(result.user, 'email');
+      setUserProfile(profile);
+      toast.success(`Welcome back, ${result.user.displayName || 'User'}!`);
+      return result;
+    } catch (error: any) {
+      console.error('Email sign-in error:', error);
+      let message = 'Failed to sign in. Please try again.';
+      if (error.code === 'auth/user-not-found') {
+        message = 'No account found with this email.';
+      } else if (error.code === 'auth/wrong-password') {
+        message = 'Incorrect password.';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Invalid email address.';
+      } else if (error.code === 'auth/too-many-requests') {
+        message = 'Too many failed attempts. Please try again later.';
+      }
+      toast.error(message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Sign up with Email/Password
+   */
+  const signUpWithEmail = async (email: string, password: string, displayName: string): Promise<UserCredential | null> => {
+    try {
+      setLoading(true);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Update display name
+      await updateProfile(result.user, { displayName });
+
+      const profile = await fetchOrCreateUserProfile(result.user, 'email');
+      setUserProfile(profile);
+      toast.success(`Welcome, ${displayName}! Your account has been created.`);
+      return result;
+    } catch (error: any) {
+      console.error('Email sign-up error:', error);
+      let message = 'Failed to create account. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        message = 'An account with this email already exists.';
+      } else if (error.code === 'auth/weak-password') {
+        message = 'Password should be at least 6 characters.';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Invalid email address.';
+      }
+      toast.error(message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Reset Password
+   */
+  const resetPassword = async (email: string): Promise<void> => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success('Password reset email sent. Check your inbox.');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      let message = 'Failed to send reset email.';
+      if (error.code === 'auth/user-not-found') {
+        message = 'No account found with this email.';
+      }
+      toast.error(message);
+    }
+  };
+
+  /**
    * Sign out
    */
   const signOut = async (): Promise<void> => {
@@ -190,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, COLLECTIONS.USERS, user.uid);
       await setDoc(userRef, updates, { merge: true });
-      
+
       // Update local state
       setUserProfile(prev => prev ? { ...prev, ...updates } : null);
       toast.success('Profile updated successfully');
@@ -205,11 +293,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const refreshUserProfile = async (): Promise<void> => {
     if (!user) return;
-    
+
     try {
       const userRef = doc(db, COLLECTIONS.USERS, user.uid);
       const userSnap = await getDoc(userRef);
-      
+
       if (userSnap.exists()) {
         setUserProfile(userSnap.data() as UserProfile);
       }
@@ -222,7 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      
+
       if (firebaseUser) {
         // Fetch user profile when authenticated
         const profile = await fetchOrCreateUserProfile(firebaseUser);
@@ -230,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(null);
       }
-      
+
       setLoading(false);
     });
 
@@ -247,12 +335,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signInWithGoogle,
     signInWithMicrosoft,
+    signInWithEmail,
+    signUpWithEmail,
+    resetPassword,
     signOut,
     isAdmin,
     isAuthenticated,
     updateUserProfile,
     refreshUserProfile,
   };
+
 
   return (
     <AuthContext.Provider value={value}>

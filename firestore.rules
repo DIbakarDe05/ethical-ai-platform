@@ -69,8 +69,17 @@ service cloud.firestore {
     
     // Feedback and reports
     match /feedback/{feedbackId} {
-      // Anyone can create feedback (including anonymous)
-      allow create: if true;
+      // Feedback creation with validation to prevent abuse
+      // - Message must be between 10 and 2000 characters
+      // - Type must be one of the allowed values
+      // - Limit data size to prevent storage attacks
+      allow create: if 
+        request.resource.data.keys().hasAll(['type', 'message']) &&
+        request.resource.data.type in ['bug', 'feature', 'general', 'content'] &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() >= 10 &&
+        request.resource.data.message.size() <= 2000 &&
+        request.resource.size() < 5 * 1024; // Max 5KB per feedback
       // Only admins can read feedback
       allow read: if isAdmin();
       // Only admins can update feedback status
@@ -94,7 +103,14 @@ service cloud.firestore {
     // Audit logs (append-only, admin read)
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
+      // Users can only create logs for their own actions
+      // Must include userId and action fields
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'action', 'timestamp']) &&
+        request.resource.data.action is string &&
+        request.resource.data.action.size() <= 100 &&
+        request.resource.size() < 2 * 1024; // Max 2KB per log
       allow update, delete: if false; // Logs are immutable
     }
   }

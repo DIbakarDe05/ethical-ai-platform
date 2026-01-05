@@ -23,16 +23,46 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Firebase configuration object
-// Replace these with your actual Firebase project config
+// Values are loaded from environment variables
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "your-project-id",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:123456789:web:abc123",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-XXXXXXXXXX",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
+
+/**
+ * Validate Firebase configuration
+ * Logs a warning if configuration is missing (development mode)
+ * In production, you may want to throw an error instead
+ */
+function validateFirebaseConfig() {
+  const requiredKeys = ['apiKey', 'authDomain', 'projectId'] as const;
+  const missingKeys = requiredKeys.filter(
+    (key) => !firebaseConfig[key]
+  );
+
+  if (missingKeys.length > 0) {
+    const isDev = process.env.NODE_ENV === 'development';
+    const message = `Firebase configuration missing: ${missingKeys.join(', ')}. ` +
+      'Please set the required NEXT_PUBLIC_FIREBASE_* environment variables.';
+
+    if (isDev) {
+      console.warn(`⚠️ ${message} Running in demo mode.`);
+    } else {
+      // In production, you may want to throw an error
+      console.error(`❌ ${message}`);
+    }
+    return false;
+  }
+  return true;
+}
+
+// Validate config on module load
+const isConfigValid = validateFirebaseConfig();
 
 // Initialize Firebase (prevent re-initialization in development)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -41,6 +71,10 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Export config validation status for conditional features
+export const isFirebaseConfigured = isConfigValid;
+
 
 // Authentication providers
 export const googleProvider = new GoogleAuthProvider();
