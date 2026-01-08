@@ -25,9 +25,20 @@ import toast from 'react-hot-toast';
 
 
 /**
+ * NGO-specific details stored in user profile
+ */
+interface NGODetails {
+  organizationName: string;
+  registrationNumber: string;
+  type: 'adoption' | 'child_care' | 'welfare';
+  location: string;
+  description?: string;
+}
+
+/**
  * Extended user profile stored in Firestore
  */
-interface UserProfile {
+export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
@@ -36,6 +47,11 @@ interface UserProfile {
   provider: string;
   createdAt: Date;
   lastLoginAt: Date;
+  // NGO-specific fields
+  ngoStatus?: 'pending' | 'approved' | 'rejected';
+  ngoDetails?: NGODetails;
+  // Account status
+  accountStatus?: 'active' | 'suspended' | 'locked';
   preferences: {
     language: string;
     theme: 'light' | 'dark' | 'system';
@@ -62,7 +78,11 @@ interface AuthContextType {
 
   // Role checks
   isAdmin: boolean;
+  isNGO: boolean;
+  isVerifiedNGO: boolean;
+  isProspectiveParent: boolean;
   isAuthenticated: boolean;
+  isAccountActive: boolean;
 
   // Profile management
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -327,7 +347,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Computed properties
   const isAdmin = userProfile?.role === USER_ROLES.ADMIN;
+  const isNGO = userProfile?.role === USER_ROLES.NGO;
+  const isVerifiedNGO = isNGO && userProfile?.ngoStatus === 'approved';
+  const isProspectiveParent = userProfile?.role === USER_ROLES.PROSPECTIVE_PARENT || userProfile?.role === USER_ROLES.USER;
   const isAuthenticated = !!user;
+  const isAccountActive = userProfile?.accountStatus !== 'suspended' && userProfile?.accountStatus !== 'locked';
 
   const value: AuthContextType = {
     user,
@@ -340,7 +364,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     signOut,
     isAdmin,
+    isNGO,
+    isVerifiedNGO,
+    isProspectiveParent,
     isAuthenticated,
+    isAccountActive,
     updateUserProfile,
     refreshUserProfile,
   };

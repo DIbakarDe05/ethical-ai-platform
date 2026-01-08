@@ -15,11 +15,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const sidebarLinks = [
   { href: '/admin', label: 'Dashboard', icon: 'dashboard', exact: true },
+  { href: '/admin/ngos', label: 'NGO Management', icon: 'apartment', badge: 3 },
+  { href: '/admin/adoption-requests', label: 'Adoption Requests', icon: 'favorite', badge: 3 },
   { href: '/admin/documents', label: 'Documents', icon: 'folder_open' },
-  { href: '/admin/approvals', label: 'Pending Approval', icon: 'pending_actions', badge: 3 },
-  { href: '/admin/analytics', label: 'Analytics', icon: 'bar_chart' },
   { href: '/admin/users', label: 'User Management', icon: 'group' },
-  { href: '/admin/audit', label: 'Audit Logs', icon: 'security' },
+  { href: '/admin/audit-logs', label: 'Audit Logs', icon: 'security' },
+  { href: '/admin/analytics', label: 'Analytics', icon: 'bar_chart' },
   { href: '/admin/settings', label: 'Settings', icon: 'settings' },
 ];
 

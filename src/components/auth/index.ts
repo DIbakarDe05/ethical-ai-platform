@@ -3,3 +3,4 @@
  */
 
 export { LoginForm } from './LoginForm';
+export { RoleAuthGuard } from './RoleAuthGuard';

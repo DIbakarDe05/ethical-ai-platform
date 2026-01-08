@@ -182,6 +182,52 @@ export function EthicsContent() {
         </div>
       </Card>
 
+      {/* Adoption Data Safeguards Section */}
+      <Card padding="lg" hover className="mb-8 bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+            <Icon name="family_restroom" className="text-emerald-600" size="lg" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+              Adoption Data Safeguards
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Our platform implements strict privacy-first principles for child adoption features:
+            </p>
+            <ul className="space-y-2 text-gray-600 dark:text-gray-400">
+              <li className="flex items-start gap-2">
+                <Icon name="check_circle" size="sm" className="text-emerald-600 mt-1" />
+                <span><strong>No Public Child Exposure:</strong> Child photos and personal data are never displayed publicly</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Icon name="check_circle" size="sm" className="text-emerald-600 mt-1" />
+                <span><strong>Explicit Consent Required:</strong> All data submissions require informed consent acknowledgment</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Icon name="check_circle" size="sm" className="text-emerald-600 mt-1" />
+                <span><strong>Human-Controlled Decisions:</strong> All adoption-related decisions are made by qualified humans, never by AI</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Icon name="check_circle" size="sm" className="text-emerald-600 mt-1" />
+                <span><strong>NGO Verification:</strong> Only admin-verified NGOs can receive adoption interest requests</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Icon name="check_circle" size="sm" className="text-emerald-600 mt-1" />
+                <span><strong>Complete Audit Trail:</strong> All actions are logged for accountability and transparency</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Icon name="check_circle" size="sm" className="text-emerald-600 mt-1" />
+                <span><strong>Secure Document Storage:</strong> Verification documents are private and access-controlled</span>
+              </li>
+            </ul>
+            <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+              We follow privacy-by-design principles aligned with child protection best practices.
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {/* Data Contribution Toggle */}
       <Card padding="lg" hover className="mb-8">
         <div className="flex items-start justify-between gap-4">

@@ -16,7 +16,7 @@ import type { NextRequest } from 'next/server';
 /**
  * Routes that require authentication
  */
-const PROTECTED_ROUTES = ['/admin'];
+const PROTECTED_ROUTES = ['/admin', '/adoption-interest', '/documents', '/chat'];
 
 /**
  * Routes that should redirect to home if already authenticated

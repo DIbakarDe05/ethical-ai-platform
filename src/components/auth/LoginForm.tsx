@@ -343,18 +343,14 @@ export function LoginForm() {
             </>
           )}
 
-          {/* Guest Access */}
+          {/* Privacy Notice */}
           <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              variant="ghost"
-              fullWidth
-              onClick={() => router.push('/chat')}
-            >
-              Continue as Guest
-            </Button>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-              Guest users have limited access to features.
-            </p>
+            <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
+              <Icon name="verified_user" size="sm" />
+              <p className="text-xs">
+                Your data is protected under our privacy policy.
+              </p>
+            </div>
           </div>
         </Card>
 

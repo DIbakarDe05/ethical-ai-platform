@@ -113,5 +113,79 @@ service cloud.firestore {
         request.resource.size() < 2 * 1024; // Max 2KB per log
       allow update, delete: if false; // Logs are immutable
     }
+    
+    // NGOs collection
+    match /ngos/{ngoId} {
+      // Anyone can read approved NGOs (public directory)
+      allow read: if resource.data.status == 'approved';
+      // Authenticated users can read their own pending NGO profile
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Admins can read all NGOs
+      allow read: if isAdmin();
+      // Users can create their own NGO profile with pending status
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.keys().hasAll(['userId', 'name', 'location', 'type', 'status']);
+      // Only admins can update NGO status (approve/reject)
+      allow update: if isAdmin();
+      // Only admins can delete NGOs
+      allow delete: if isAdmin();
+    }
+    
+    // Adoption interest requests
+    match /adoption_requests/{requestId} {
+      // Owner can read their own requests
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Assigned NGO can read requests directed to them
+      allow read: if isAuthenticated() && resource.data.ngoId == request.auth.uid;
+      // Admins can read all requests
+      allow read: if isAdmin();
+      // Authenticated users can create requests for themselves
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'ngoId', 'agePreference', 'location', 'specialCare', 'consent']) &&
+        request.resource.data.consent == true;
+      // Only admins and assigned NGOs can update request status
+      allow update: if isAdmin() || 
+        (isAuthenticated() && resource.data.ngoId == request.auth.uid);
+      // Only admins can delete requests
+      allow delete: if isAdmin();
+    }
+    
+    // Contact requests for NGO communication
+    match /contact_requests/{requestId} {
+      // Sender can read their own requests
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Target NGO can read requests sent to them
+      allow read: if isAuthenticated() && resource.data.ngoUserId == request.auth.uid;
+      // Admins can read all contact requests
+      allow read: if isAdmin();
+      // Authenticated users can create contact requests
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'ngoId', 'message']);
+      // NGO recipients and admins can update (mark as responded, etc.)
+      allow update: if isAdmin() || 
+        (isAuthenticated() && resource.data.ngoUserId == request.auth.uid);
+      // Only admins can delete contact requests
+      allow delete: if isAdmin();
+    }
+    
+    // User documents (private verification files)
+    match /user_documents/{docId} {
+      // Users can read their own documents
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Admins can read all user documents for verification
+      allow read: if isAdmin();
+      // Users can upload their own documents
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'type', 'fileName', 'uploadedAt']);
+      // Users can update their own documents (replace)
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can delete their own documents, admins can delete any
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid || isAdmin();
+    }
   }
 }

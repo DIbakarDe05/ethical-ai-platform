@@ -18,6 +18,7 @@ const navLinks = [
   { href: '/', label: 'Home', icon: 'home' },
   { href: '/chat', label: 'AI Chat', icon: 'chat' },
   { href: '/knowledge-base', label: 'Knowledge Base', icon: 'library_books' },
+  { href: '/ngo-directory', label: 'NGO Directory', icon: 'apartment' },
   { href: '/ethics', label: 'Ethics', icon: 'policy' },
 ];
 
@@ -66,7 +67,7 @@ export function Navbar() {
                 </Link>
               );
             })}
-            
+
             {/* Admin link */}
             {isAdmin && (
               <Link
@@ -139,7 +140,27 @@ export function Navbar() {
                           </span>
                         )}
                       </div>
-                      
+
+                      <Link
+                        href="/adoption-interest"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Icon name="favorite" size="md" />
+                        Adoption Interest
+                      </Link>
+
+                      <Link
+                        href="/documents"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Icon name="upload_file" size="md" />
+                        My Documents
+                      </Link>
+
+                      <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
+
                       <Link
                         href="/settings"
                         className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -148,7 +169,7 @@ export function Navbar() {
                         <Icon name="settings" size="md" />
                         Settings
                       </Link>
-                      
+
                       <button
                         onClick={() => {
                           signOut();

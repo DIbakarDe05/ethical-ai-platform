@@ -87,7 +87,7 @@ export async function getUserRole(uid: string): Promise<string> {
 /**
  * Set custom claims for user (admin only operation)
  */
-export async function setUserRole(uid: string, role: 'admin' | 'user' | 'guest') {
+export async function setUserRole(uid: string, role: 'admin' | 'user' | 'guest' | 'ngo' | 'prospective_parent') {
   try {
     await adminAuth.setCustomUserClaims(uid, { role });
     return { success: true };

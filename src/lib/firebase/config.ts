@@ -105,6 +105,11 @@ export const COLLECTIONS = {
   AUDIT_LOGS: 'audit_logs',
   FEEDBACK: 'feedback',
   ANALYTICS: 'analytics',
+  // New collections for adoption platform features
+  NGOS: 'ngos',
+  ADOPTION_REQUESTS: 'adoption_requests',
+  USER_DOCUMENTS: 'user_documents',
+  CONTACT_REQUESTS: 'contact_requests',
 } as const;
 
 /**
@@ -114,7 +119,32 @@ export const COLLECTIONS = {
 export const USER_ROLES = {
   GUEST: 'guest',
   USER: 'user',
+  PROSPECTIVE_PARENT: 'prospective_parent',
+  NGO: 'ngo',
   ADMIN: 'admin',
 } as const;
 
 export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+
+/**
+ * NGO Types
+ */
+export const NGO_TYPES = {
+  ADOPTION: 'adoption',
+  CHILD_CARE: 'child_care',
+  WELFARE: 'welfare',
+} as const;
+
+export type NGOType = typeof NGO_TYPES[keyof typeof NGO_TYPES];
+
+/**
+ * NGO Status
+ */
+export const NGO_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+} as const;
+
+export type NGOStatus = typeof NGO_STATUS[keyof typeof NGO_STATUS];
+
