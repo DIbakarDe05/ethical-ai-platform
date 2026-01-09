@@ -35,7 +35,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     }, []);
 
     return (
-        <header className="sticky top-0 z-40 h-16 flex items-center justify-between px-4 lg:px-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50">
+        <header className="sticky top-0 z-40 h-14 flex items-center justify-between px-4 lg:px-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50">
             {/* Left side - Menu button (mobile) + Logo (mobile only) */}
             <div className="flex items-center gap-3">
                 {/* Hamburger menu for mobile */}
@@ -66,17 +66,17 @@ export function TopBar({ onMenuClick }: TopBarProps) {
             </div>
 
             {/* Right side - Theme toggle + User */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
                 {/* Theme toggle */}
                 <button
                     onClick={toggleTheme}
-                    className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 group"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
                     aria-label="Toggle theme"
                 >
                     <Icon
                         name={resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
-                        size="md"
-                        className="text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors"
+                        size="sm"
+                        className="text-gray-500 dark:text-gray-400"
                     />
                 </button>
 
@@ -85,10 +85,10 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                     <div ref={menuRef} className="relative">
                         <button
                             onClick={() => setShowUserMenu(!showUserMenu)}
-                            className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+                            className="flex items-center gap-1.5 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
                         >
-                            {/* Profile image - Fixed aspect ratio */}
-                            <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-gradient-to-br from-primary to-blue-600 flex-shrink-0">
+                            {/* Profile image - Circular, clean */}
+                            <div className="relative h-8 w-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary/20 transition-all">
                                 {user.photoURL ? (
                                     <img
                                         src={user.photoURL}
@@ -97,31 +97,21 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                                         referrerPolicy="no-referrer"
                                     />
                                 ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-white font-medium text-sm">
+                                    <div className="h-full w-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-medium text-sm">
                                         {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
                                     </div>
                                 )}
                             </div>
-
-                            {/* Name - hidden on small screens */}
-                            <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
-                                {user.displayName?.split(' ')[0] || 'User'}
-                            </span>
-
-                            <Icon
-                                name={showUserMenu ? 'expand_less' : 'expand_more'}
-                                size="sm"
-                                className="text-gray-400 hidden sm:block"
-                            />
                         </button>
 
-                        {/* Dropdown menu */}
+                        {/* Dropdown menu - Seamless design */}
                         {showUserMenu && (
-                            <div className="absolute right-0 mt-2 w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-2 overflow-hidden">
-                                {/* User info header */}
-                                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/30 border border-gray-100 dark:border-gray-800 overflow-hidden">
+                                {/* User profile card - Seamless header */}
+                                <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-850">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-12 w-12 rounded-xl overflow-hidden bg-gradient-to-br from-primary to-blue-600 flex-shrink-0">
+                                        {/* Larger profile image */}
+                                        <div className="h-14 w-14 rounded-full overflow-hidden ring-4 ring-white dark:ring-gray-900 shadow-lg flex-shrink-0">
                                             {user.photoURL ? (
                                                 <img
                                                     src={user.photoURL}
@@ -130,20 +120,21 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                                                     referrerPolicy="no-referrer"
                                                 />
                                             ) : (
-                                                <div className="h-full w-full flex items-center justify-center text-white font-bold text-lg">
+                                                <div className="h-full w-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-xl">
                                                     {user.displayName?.charAt(0) || '?'}
                                                 </div>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                            <p className="font-semibold text-gray-900 dark:text-white truncate">
                                                 {user.displayName || 'User'}
                                             </p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                                 {user.email}
                                             </p>
                                             {userProfile?.role && (
-                                                <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary capitalize">
+                                                <span className="inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary capitalize">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5" />
                                                     {userProfile.role}
                                                 </span>
                                             )}
@@ -151,47 +142,64 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                                     </div>
                                 </div>
 
-                                {/* Menu items */}
-                                <div className="py-1">
+                                {/* Quick actions */}
+                                <div className="p-2">
                                     <Link
                                         href="/adoption-interest"
-                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                         onClick={() => setShowUserMenu(false)}
                                     >
-                                        <Icon name="favorite" size="md" />
-                                        Adoption Interest
+                                        <div className="h-9 w-9 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+                                            <Icon name="favorite" size="sm" className="text-pink-600 dark:text-pink-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">Adoption Interest</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-500">Submit your application</p>
+                                        </div>
                                     </Link>
 
                                     <Link
                                         href="/documents"
-                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                         onClick={() => setShowUserMenu(false)}
                                     >
-                                        <Icon name="folder" size="md" />
-                                        My Documents
+                                        <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                            <Icon name="folder" size="sm" className="text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">My Documents</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-500">Manage your files</p>
+                                        </div>
                                     </Link>
 
                                     <Link
                                         href="/settings"
-                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                         onClick={() => setShowUserMenu(false)}
                                     >
-                                        <Icon name="settings" size="md" />
-                                        Settings
+                                        <div className="h-9 w-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                            <Icon name="settings" size="sm" className="text-gray-600 dark:text-gray-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">Settings</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-500">Preferences & account</p>
+                                        </div>
                                     </Link>
                                 </div>
 
-                                {/* Sign out */}
-                                <div className="border-t border-gray-100 dark:border-gray-800 pt-1">
+                                {/* Sign out - Clean separator */}
+                                <div className="p-2 border-t border-gray-100 dark:border-gray-800">
                                     <button
                                         onClick={() => {
                                             signOut();
                                             setShowUserMenu(false);
                                         }}
-                                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
                                     >
-                                        <Icon name="logout" size="md" />
-                                        Sign out
+                                        <div className="h-9 w-9 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-red-100 dark:group-hover:bg-red-900/30 flex items-center justify-center transition-colors">
+                                            <Icon name="logout" size="sm" className="text-gray-600 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" />
+                                        </div>
+                                        <span className="font-medium">Sign out</span>
                                     </button>
                                 </div>
                             </div>
@@ -199,8 +207,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                     </div>
                 ) : (
                     <Link href="/login">
-                        <Button size="sm" className="rounded-xl">
-                            <Icon name="login" size="sm" className="mr-1.5" />
+                        <Button size="sm" className="rounded-full px-4">
                             Log In
                         </Button>
                     </Link>
