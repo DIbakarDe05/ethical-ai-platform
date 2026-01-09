@@ -2,24 +2,34 @@
  * Login Form Component
  * 
  * Authentication form with OAuth providers and email/password.
+ * 
+ * REDIRECT FLOW:
+ * 1. Middleware captures original URL in ?redirect param
+ * 2. LoginForm stores redirect in sessionStorage (survives refresh)
+ * 3. On successful auth, useEffect checks for stored redirect
+ * 4. Redirects to original page or role-based dashboard
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, Button, Icon } from '@/components/ui';
+import { USER_ROLES } from '@/lib/firebase/config';
 import toast from 'react-hot-toast';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
+
+const REDIRECT_KEY = 'auth_redirect_url';
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
     user,
+    userProfile,
     signInWithGoogle,
     signInWithMicrosoft,
     signInWithEmail,
@@ -34,34 +44,105 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   /**
    * Validate redirect URL to prevent open redirect attacks
    */
-  const validateRedirectUrl = (url: string | null): string => {
-    const defaultPath = '/chat';
-    if (!url) return defaultPath;
-    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url)) return defaultPath;
-    if (url.startsWith('//')) return defaultPath;
-    if (!url.startsWith('/')) return defaultPath;
-    if (url.includes('%00') || url.includes('%0d') || url.includes('%0a')) return defaultPath;
+  const validateRedirectUrl = useCallback((url: string | null): string | null => {
+    if (!url) return null;
+    // Block absolute URLs and protocol-relative URLs
+    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url)) return null;
+    if (url.startsWith('//')) return null;
+    if (!url.startsWith('/')) return null;
+    // Block null bytes and CRLF injection
+    if (url.includes('%00') || url.includes('%0d') || url.includes('%0a')) return null;
+    // Block redirect to login page itself
+    if (url === '/login' || url.startsWith('/login?')) return null;
+    // Normalize multiple slashes
     return url.replace(/\/+/g, '/');
-  };
+  }, []);
 
-  const redirectTo = validateRedirectUrl(searchParams.get('redirect'));
-
-  useEffect(() => {
-    if (user && !authLoading) {
-      // Use replace instead of push to prevent back button issues
-      router.replace(redirectTo);
+  /**
+   * Get role-based default redirect
+   */
+  const getRoleBasedRedirect = useCallback((role: string | undefined): string => {
+    switch (role) {
+      case USER_ROLES.ADMIN:
+        return '/admin';
+      case USER_ROLES.NGO:
+        return '/ngo-directory';
+      case USER_ROLES.PROSPECTIVE_PARENT:
+        return '/adoption-interest';
+      default:
+        return '/';
     }
-  }, [user, authLoading, router, redirectTo]);
+  }, []);
+
+  /**
+   * Store redirect URL in sessionStorage on initial load
+   */
+  useEffect(() => {
+    const redirectParam = searchParams.get('redirect');
+    const validatedUrl = validateRedirectUrl(redirectParam);
+
+    if (validatedUrl) {
+      // Store in sessionStorage to survive page refresh
+      try {
+        sessionStorage.setItem(REDIRECT_KEY, validatedUrl);
+      } catch (e) {
+        // sessionStorage might be disabled
+        console.warn('Could not store redirect URL:', e);
+      }
+    }
+  }, [searchParams, validateRedirectUrl]);
+
+  /**
+   * Handle redirect after successful authentication
+   */
+  useEffect(() => {
+    // Don't redirect if still loading, no user, or already redirected
+    if (authLoading || !user || hasRedirected) {
+      return;
+    }
+
+    // Prevent multiple redirects
+    setHasRedirected(true);
+
+    // Get stored redirect URL
+    let redirectUrl: string | null = null;
+    try {
+      redirectUrl = sessionStorage.getItem(REDIRECT_KEY);
+      // Clear after reading to prevent stale redirects
+      sessionStorage.removeItem(REDIRECT_KEY);
+    } catch (e) {
+      console.warn('Could not read redirect URL:', e);
+    }
+
+    // Validate the stored URL
+    const validatedUrl = validateRedirectUrl(redirectUrl);
+
+    // Determine final redirect destination
+    const finalUrl = validatedUrl || getRoleBasedRedirect(userProfile?.role);
+
+    // Use replace to prevent back button returning to login
+    // Add a small delay to ensure auth state is fully propagated
+    const timeoutId = setTimeout(() => {
+      router.replace(finalUrl);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [user, userProfile, authLoading, hasRedirected, router, validateRedirectUrl, getRoleBasedRedirect]);
 
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      await signInWithGoogle();
-      // Don't manually redirect here - useEffect will handle it after user state updates
+      const result = await signInWithGoogle();
+      if (!result) {
+        // Sign-in was cancelled or failed
+        setIsLoading(false);
+      }
+      // Don't redirect here - useEffect handles it
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       setIsLoading(false);
@@ -71,8 +152,10 @@ export function LoginForm() {
   const handleMicrosoftSignIn = async () => {
     try {
       setIsLoading(true);
-      await signInWithMicrosoft();
-      // Don't manually redirect here - useEffect will handle it after user state updates
+      const result = await signInWithMicrosoft();
+      if (!result) {
+        setIsLoading(false);
+      }
     } catch (error: any) {
       console.error('Microsoft sign-in error:', error);
       setIsLoading(false);
@@ -87,8 +170,10 @@ export function LoginForm() {
     }
     try {
       setIsLoading(true);
-      await signInWithEmail(email, password);
-      // Don't manually redirect here - useEffect will handle it after user state updates
+      const result = await signInWithEmail(email, password);
+      if (!result) {
+        setIsLoading(false);
+      }
     } catch (error: any) {
       console.error('Email sign-in error:', error);
       setIsLoading(false);
@@ -111,8 +196,10 @@ export function LoginForm() {
     }
     try {
       setIsLoading(true);
-      await signUpWithEmail(email, password, displayName);
-      // Don't manually redirect here - useEffect will handle it after user state updates
+      const result = await signUpWithEmail(email, password, displayName);
+      if (!result) {
+        setIsLoading(false);
+      }
     } catch (error: any) {
       console.error('Email sign-up error:', error);
       setIsLoading(false);
@@ -134,10 +221,23 @@ export function LoginForm() {
     }
   };
 
+  // Show loading while checking auth state
   if (authLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // If user is already logged in, show redirecting message
+  if (user && !hasRedirected) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Redirecting...</p>
+        </div>
       </div>
     );
   }

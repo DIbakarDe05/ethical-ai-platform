@@ -7,8 +7,8 @@
 
 'use client';
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingPage } from '@/components/ui';
 import { Icon, Button } from '@/components/ui';
@@ -30,15 +30,21 @@ export function RoleAuthGuard({
     requireActiveAccount = true,
     fallbackPath = '/',
 }: RoleAuthGuardProps) {
+    const router = useRouter();
+    const pathname = usePathname();
     const { user, userProfile, loading, isVerifiedNGO, isAccountActive } = useAuth();
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
     // Show loading state
     if (loading) {
         return <LoadingPage />;
     }
 
-    // Not authenticated
+    // Not authenticated - redirect to login with return URL
     if (!user) {
+        // Build login URL with redirect parameter
+        const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+
         return (
             <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark p-4">
                 <div className="text-center max-w-md">
@@ -51,7 +57,7 @@ export function RoleAuthGuard({
                     <p className="text-gray-600 dark:text-gray-400 mb-6">
                         Please sign in to access this page.
                     </p>
-                    <Link href="/login">
+                    <Link href={loginUrl}>
                         <Button icon="login">
                             Sign In
                         </Button>

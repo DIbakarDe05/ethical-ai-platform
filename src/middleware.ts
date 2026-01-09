@@ -87,32 +87,15 @@ export function middleware(request: NextRequest) {
         return response;
     }
 
-    // Check for auth token in cookies for page routes
-    const authToken = request.cookies.get('__session')?.value ||
-        request.cookies.get('authToken')?.value;
-
-    // Check if accessing protected route
-    const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
-        pathname.startsWith(route)
-    );
-
-    // Check if accessing auth route (login/register)
-    const isAuthRoute = AUTH_ROUTES.some((route) =>
-        pathname.startsWith(route)
-    );
-
-    // Redirect to login if accessing protected route without auth
-    if (isProtectedRoute && !authToken) {
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('redirect', pathname);
-        return NextResponse.redirect(loginUrl);
-    }
-
-    // Optionally redirect to home if accessing login while authenticated
-    // Uncomment if you want this behavior
-    // if (isAuthRoute && authToken) {
-    //   return NextResponse.redirect(new URL('/', request.url));
-    // }
+    // NOTE: Firebase client-side auth doesn't set cookies automatically.
+    // Protected route checking is handled client-side by AuthGuard components.
+    // The middleware only handles API CORS and security headers.
+    // 
+    // If you need server-side auth checking, you would need to:
+    // 1. Set a session cookie after Firebase auth completes
+    // 2. Verify the token here using Firebase Admin SDK
+    //
+    // For now, we let client-side auth guards handle page protection.
 
     // Add security headers to response
     const response = NextResponse.next();

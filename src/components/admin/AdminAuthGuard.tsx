@@ -7,7 +7,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingPage } from '@/components/ui';
 import { Icon, Button } from '@/components/ui';
@@ -20,14 +20,17 @@ interface AdminAuthGuardProps {
 export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   const { user, userProfile, loading, isAdmin } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Show loading state
   if (loading) {
     return <LoadingPage />;
   }
 
-  // Not authenticated
+  // Not authenticated - redirect to login with return URL
   if (!user) {
+    const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark p-4">
         <div className="text-center max-w-md">
@@ -40,7 +43,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Please sign in to access the admin dashboard.
           </p>
-          <Link href="/login?redirect=/admin">
+          <Link href={loginUrl}>
             <Button icon="login">
               Sign In
             </Button>
@@ -62,7 +65,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
             Admin Access Required
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            You don't have permission to access the admin dashboard. 
+            You don't have permission to access the admin dashboard.
             Contact your organization administrator for access.
           </p>
           <div className="flex gap-3 justify-center">
