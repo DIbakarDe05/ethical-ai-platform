@@ -7,18 +7,23 @@
  * - Authentication required (Bearer token)
  * - Rate limiting (20 requests per minute)
  * - Input validation with Zod
+ * - CORS protection
+ * - IP blocking for repeated failures
  * - Safe error responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
-  authenticateRequest,
+  requireAuth,
   checkRateLimit,
   getClientIdentifier,
   rateLimitResponse,
   errorResponse,
   RATE_LIMITS,
+  withCors,
+  corsPreflightResponse,
+  logRequest,
 } from '@/lib/api/auth';
 import { chatMessageSchema, validateInput } from '@/lib/validation';
 
@@ -45,16 +50,33 @@ When responding:
 
 Remember: You are assisting vulnerable populations. Prioritize accuracy and empathy.`;
 
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let userId: string | undefined;
+
   try {
-    // Authentication check (optional for demo mode)
-    const authResult = await authenticateRequest(request);
-    const clientId = getClientIdentifier(request, authResult.userId);
+    // Authentication required
+    const { auth, error: authError } = await requireAuth(request);
+    if (authError) {
+      logRequest(request, 401, startTime);
+      return withCors(authError, request);
+    }
+    userId = auth.userId;
+
+    const clientId = getClientIdentifier(request, auth.userId);
 
     // Rate limiting
     const rateLimit = checkRateLimit(clientId, RATE_LIMITS.chat);
     if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.resetIn);
+      logRequest(request, 429, startTime, userId);
+      return withCors(rateLimitResponse(rateLimit.resetIn), request);
     }
 
     // Parse and validate input
@@ -62,17 +84,25 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON body' },
-        { status: 400 }
+      logRequest(request, 400, startTime, userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Invalid JSON body' },
+          { status: 400 }
+        ),
+        request
       );
     }
 
     const validation = validateInput(chatMessageSchema, body);
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.error },
-        { status: 400 }
+      logRequest(request, 400, startTime, userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Validation failed', details: validation.error },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -94,14 +124,18 @@ export async function POST(request: NextRequest) {
 
     // Check if API key is configured
     if (!process.env.GEMINI_API_KEY) {
-      // Return demo response
-      return NextResponse.json({
-        message: getDemoResponse(message),
-        citations: [
-          { title: 'Demo Document', section: 'Sample Section', confidence: 0.95 }
-        ],
-        isDemo: true
-      });
+      // Return demo response for authenticated users only
+      logRequest(request, 200, startTime, userId);
+      return withCors(
+        NextResponse.json({
+          message: getDemoResponse(message),
+          citations: [
+            { title: 'Demo Document', section: 'Sample Section', confidence: 0.95 }
+          ],
+          isDemo: true
+        }),
+        request
+      );
     }
 
     // Initialize model
@@ -140,17 +174,25 @@ Provide a helpful, accurate response with citations where applicable.`;
       });
     }
 
-    return NextResponse.json({
-      message: text,
-      citations,
-      isDemo: false,
-    });
+    logRequest(request, 200, startTime, userId);
+    return withCors(
+      NextResponse.json({
+        message: text,
+        citations,
+        isDemo: false,
+      }),
+      request
+    );
 
   } catch (error) {
     console.error('Chat API error:', error);
-    return errorResponse(
-      'Failed to process chat request',
-      error instanceof Error ? error : undefined
+    logRequest(request, 500, startTime, userId);
+    return withCors(
+      errorResponse(
+        'Failed to process chat request',
+        error instanceof Error ? error : undefined
+      ),
+      request
     );
   }
 }
@@ -228,10 +270,13 @@ Could you please provide more details about what you're looking for? I'm here to
 *Note: This is a demo response. In production, responses are generated based on your organization's verified documents.*`;
 }
 
-export async function GET() {
-  return NextResponse.json({
-    status: 'Chat API is running',
-    version: '1.0.0',
-    model: 'gemini-1.5-flash'
-  });
+export async function GET(request: NextRequest) {
+  return withCors(
+    NextResponse.json({
+      status: 'Chat API is running',
+      version: '1.0.0',
+      requiresAuth: true,
+    }),
+    request
+  );
 }

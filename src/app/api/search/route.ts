@@ -4,18 +4,24 @@
  * Handles semantic search across the knowledge base using vector similarity.
  * 
  * SECURITY FEATURES:
+ * - Authentication required
  * - Rate limiting (30 requests per minute)
  * - Input validation with Zod
+ * - CORS protection
  * - Safe error responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  requireAuth,
   checkRateLimit,
   getClientIdentifier,
   rateLimitResponse,
   errorResponse,
   RATE_LIMITS,
+  withCors,
+  corsPreflightResponse,
+  logRequest,
 } from '@/lib/api/auth';
 import { searchQuerySchema, validateInput } from '@/lib/validation';
 
@@ -47,14 +53,31 @@ const demoResults = [
   },
 ];
 
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
-    const clientId = getClientIdentifier(request);
+    // Authentication required
+    const { auth, error: authError } = await requireAuth(request);
+    if (authError) {
+      logRequest(request, 401, startTime);
+      return withCors(authError, request);
+    }
+
+    const clientId = getClientIdentifier(request, auth.userId);
 
     // Rate limiting
     const rateLimit = checkRateLimit(clientId, RATE_LIMITS.search);
     if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.resetIn);
+      logRequest(request, 429, startTime, auth.userId);
+      return withCors(rateLimitResponse(rateLimit.resetIn), request);
     }
 
     // Parse and validate input
@@ -62,17 +85,25 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON body' },
-        { status: 400 }
+      logRequest(request, 400, startTime, auth.userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Invalid JSON body' },
+          { status: 400 }
+        ),
+        request
       );
     }
 
     const validation = validateInput(searchQuerySchema, body);
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.error },
-        { status: 400 }
+      logRequest(request, 400, startTime, auth.userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Validation failed', details: validation.error },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -108,26 +139,38 @@ export async function POST(request: NextRequest) {
     // Limit results
     results = results.slice(0, limit);
 
-    return NextResponse.json({
-      results,
-      query,
-      totalResults: results.length,
-      searchTime: Math.random() * 0.5 + 0.1, // Simulated search time
-    });
+    logRequest(request, 200, startTime, auth.userId);
+    return withCors(
+      NextResponse.json({
+        results,
+        query,
+        totalResults: results.length,
+        searchTime: Math.random() * 0.5 + 0.1, // Simulated search time
+      }),
+      request
+    );
 
   } catch (error) {
     console.error('Search API error:', error);
-    return errorResponse(
-      'Failed to perform search',
-      error instanceof Error ? error : undefined
+    logRequest(request, 500, startTime);
+    return withCors(
+      errorResponse(
+        'Failed to perform search',
+        error instanceof Error ? error : undefined
+      ),
+      request
     );
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    status: 'Search API is running',
-    version: '1.0.0',
-    features: ['semantic-search', 'filters', 'highlighting'],
-  });
+export async function GET(request: NextRequest) {
+  return withCors(
+    NextResponse.json({
+      status: 'Search API is running',
+      version: '1.0.0',
+      features: ['semantic-search', 'filters', 'highlighting'],
+      requiresAuth: true,
+    }),
+    request
+  );
 }

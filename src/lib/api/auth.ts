@@ -7,10 +7,25 @@
  * - Bearer token validation using Firebase Admin SDK
  * - In-memory rate limiting (replace with Redis in production)
  * - Helper functions for consistent auth patterns
+ * - API key validation for service-to-service calls
+ * - IP-based blocking for repeated failures
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyIdToken, getUserRole } from '@/lib/firebase/admin';
+import {
+    getClientIP,
+    isIPBlocked,
+    recordFailedAttempt,
+    clearFailedAttempts,
+    blockedResponse,
+    isOriginAllowed,
+    originNotAllowedResponse,
+    withCors,
+    corsPreflightResponse,
+    validateApiKey,
+    logRequest,
+} from './security';
 
 /**
  * Rate Limiter Configuration
@@ -146,10 +161,69 @@ export async function authenticateRequest(
 }
 
 /**
+ * Require authentication wrapper
+ * Use this to protect API routes that require a logged-in user
+ */
+export async function requireAuth(
+    request: NextRequest
+): Promise<{ auth: AuthResult; error?: NextResponse }> {
+    const ip = getClientIP(request);
+
+    // Check if IP is blocked
+    if (isIPBlocked(ip)) {
+        return { auth: { authenticated: false }, error: blockedResponse() };
+    }
+
+    // Check origin
+    const origin = request.headers.get('origin');
+    if (origin && !isOriginAllowed(origin)) {
+        return { auth: { authenticated: false }, error: originNotAllowedResponse() };
+    }
+
+    const authResult = await authenticateRequest(request);
+
+    if (!authResult.authenticated) {
+        recordFailedAttempt(ip);
+        return {
+            auth: authResult,
+            error: unauthorizedResponse(authResult.error || 'Authentication required')
+        };
+    }
+
+    // Clear failed attempts on successful auth
+    clearFailedAttempts(ip);
+
+    return { auth: authResult };
+}
+
+/**
+ * Require API key for service-to-service communication
+ */
+export function requireApiKey(request: NextRequest): { valid: boolean; error?: NextResponse } {
+    if (!validateApiKey(request)) {
+        return {
+            valid: false,
+            error: NextResponse.json(
+                { error: 'Invalid or missing API key' },
+                { status: 401 }
+            )
+        };
+    }
+    return { valid: true };
+}
+
+/**
  * Check if user has admin role
  */
 export function isAdminUser(authResult: AuthResult): boolean {
     return authResult.authenticated && authResult.role === 'admin';
+}
+
+/**
+ * Check if user has specific role
+ */
+export function hasRole(authResult: AuthResult, ...roles: string[]): boolean {
+    return authResult.authenticated && roles.includes(authResult.role || '');
 }
 
 /**
@@ -220,9 +294,9 @@ export function getClientIdentifier(
     }
 
     // Get IP from various headers (for proxied requests)
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIp = request.headers.get('x-real-ip');
-    const ip = forwarded?.split(',')[0].trim() || realIp || 'unknown';
-
+    const ip = getClientIP(request);
     return `ip:${ip}`;
 }
+
+// Re-export security utilities for convenience
+export { withCors, corsPreflightResponse, logRequest };

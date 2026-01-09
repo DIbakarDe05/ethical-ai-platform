@@ -58,6 +58,32 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * API-specific security headers
+ */
+const apiSecurityHeaders = [
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff',
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY',
+  },
+  {
+    key: 'Cache-Control',
+    value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  },
+  {
+    key: 'Pragma',
+    value: 'no-cache',
+  },
+  {
+    key: 'Expires',
+    value: '0',
+  },
+];
+
 const nextConfig = {
   // Enable React Strict Mode for better development experience
   reactStrictMode: true,
@@ -66,9 +92,22 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Apply to all routes
+        // Apply general security headers to all routes
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        // Apply stricter headers to API routes
+        source: '/api/:path*',
+        headers: [
+          ...apiSecurityHeaders,
+          // CORS headers are handled in middleware/route handlers
+          // but we can add default restrictive ones here
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
+          },
+        ],
       },
     ];
   },

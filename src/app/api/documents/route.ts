@@ -4,24 +4,27 @@
  * Handles document CRUD operations for the knowledge base.
  * 
  * SECURITY FEATURES:
- * - Authentication required for write operations
+ * - Authentication required for all operations
  * - Admin role required for create/delete
  * - Rate limiting (10 requests per minute for writes)
  * - Input validation with Zod
+ * - CORS protection
  * - Safe error responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  authenticateRequest,
+  requireAuth,
   checkRateLimit,
   getClientIdentifier,
   rateLimitResponse,
   errorResponse,
-  unauthorizedResponse,
   forbiddenResponse,
   isAdminUser,
   RATE_LIMITS,
+  withCors,
+  corsPreflightResponse,
+  logRequest,
 } from '@/lib/api/auth';
 import { documentUploadSchema, documentIdSchema, validateInput } from '@/lib/validation';
 
@@ -113,14 +116,31 @@ const demoDocuments = [
   },
 ];
 
-export async function GET(request: NextRequest) {
-  try {
-    const clientId = getClientIdentifier(request);
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
 
-    // Rate limiting for read operations (more permissive)
+export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+
+  try {
+    // Authentication required for document listing
+    const { auth, error: authError } = await requireAuth(request);
+    if (authError) {
+      logRequest(request, 401, startTime);
+      return withCors(authError, request);
+    }
+
+    const clientId = getClientIdentifier(request, auth.userId);
+
+    // Rate limiting for read operations
     const rateLimit = checkRateLimit(clientId, RATE_LIMITS.default);
     if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.resetIn);
+      logRequest(request, 429, startTime, auth.userId);
+      return withCors(rateLimitResponse(rateLimit.resetIn), request);
     }
 
     const { searchParams } = new URL(request.url);
@@ -155,44 +175,57 @@ export async function GET(request: NextRequest) {
     const startIndex = (page - 1) * limit;
     const paginatedDocs = filteredDocs.slice(startIndex, startIndex + limit);
 
-    return NextResponse.json({
-      documents: paginatedDocs,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      },
-    });
+    logRequest(request, 200, startTime, auth.userId);
+    return withCors(
+      NextResponse.json({
+        documents: paginatedDocs,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
+      }),
+      request
+    );
 
   } catch (error) {
     console.error('Documents API error:', error);
-    return errorResponse(
-      'Failed to fetch documents',
-      error instanceof Error ? error : undefined
+    logRequest(request, 500, startTime);
+    return withCors(
+      errorResponse(
+        'Failed to fetch documents',
+        error instanceof Error ? error : undefined
+      ),
+      request
     );
   }
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
-    // Authentication required for creating documents
-    const authResult = await authenticateRequest(request);
-    if (!authResult.authenticated) {
-      return unauthorizedResponse('Authentication required to upload documents');
+    // Authentication required
+    const { auth, error: authError } = await requireAuth(request);
+    if (authError) {
+      logRequest(request, 401, startTime);
+      return withCors(authError, request);
     }
 
     // Admin role required
-    if (!isAdminUser(authResult)) {
-      return forbiddenResponse('Admin role required to upload documents');
+    if (!isAdminUser(auth)) {
+      logRequest(request, 403, startTime, auth.userId);
+      return withCors(forbiddenResponse('Admin role required to upload documents'), request);
     }
 
-    const clientId = getClientIdentifier(request, authResult.userId);
+    const clientId = getClientIdentifier(request, auth.userId);
 
     // Rate limiting for write operations (more restrictive)
     const rateLimit = checkRateLimit(clientId, RATE_LIMITS.documents);
     if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.resetIn);
+      logRequest(request, 429, startTime, auth.userId);
+      return withCors(rateLimitResponse(rateLimit.resetIn), request);
     }
 
     // Parse and validate input
@@ -200,17 +233,25 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON body' },
-        { status: 400 }
+      logRequest(request, 400, startTime, auth.userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Invalid JSON body' },
+          { status: 400 }
+        ),
+        request
       );
     }
 
     const validation = validateInput(documentUploadSchema, body);
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.error },
-        { status: 400 }
+      logRequest(request, 400, startTime, auth.userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Validation failed', details: validation.error },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -228,7 +269,7 @@ export async function POST(request: NextRequest) {
       description,
       category,
       status: 'pending',
-      uploadedBy: authResult.userId,
+      uploadedBy: auth.userId,
       uploadedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
       fileSize: content?.length || 0,
@@ -237,40 +278,53 @@ export async function POST(request: NextRequest) {
       tags,
     };
 
-    return NextResponse.json({
-      success: true,
-      document: newDocument,
-      message: 'Document uploaded successfully. Pending admin approval.',
-    });
+    logRequest(request, 200, startTime, auth.userId);
+    return withCors(
+      NextResponse.json({
+        success: true,
+        document: newDocument,
+        message: 'Document uploaded successfully. Pending admin approval.',
+      }),
+      request
+    );
 
   } catch (error) {
     console.error('Document upload error:', error);
-    return errorResponse(
-      'Failed to upload document',
-      error instanceof Error ? error : undefined
+    logRequest(request, 500, startTime);
+    return withCors(
+      errorResponse(
+        'Failed to upload document',
+        error instanceof Error ? error : undefined
+      ),
+      request
     );
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
-    // Authentication required for deleting documents
-    const authResult = await authenticateRequest(request);
-    if (!authResult.authenticated) {
-      return unauthorizedResponse('Authentication required to delete documents');
+    // Authentication required
+    const { auth, error: authError } = await requireAuth(request);
+    if (authError) {
+      logRequest(request, 401, startTime);
+      return withCors(authError, request);
     }
 
     // Admin role required
-    if (!isAdminUser(authResult)) {
-      return forbiddenResponse('Admin role required to delete documents');
+    if (!isAdminUser(auth)) {
+      logRequest(request, 403, startTime, auth.userId);
+      return withCors(forbiddenResponse('Admin role required to delete documents'), request);
     }
 
-    const clientId = getClientIdentifier(request, authResult.userId);
+    const clientId = getClientIdentifier(request, auth.userId);
 
     // Rate limiting for write operations
     const rateLimit = checkRateLimit(clientId, RATE_LIMITS.documents);
     if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.resetIn);
+      logRequest(request, 429, startTime, auth.userId);
+      return withCors(rateLimitResponse(rateLimit.resetIn), request);
     }
 
     const { searchParams } = new URL(request.url);
@@ -278,9 +332,13 @@ export async function DELETE(request: NextRequest) {
 
     const validation = validateInput(documentIdSchema, { id: documentId });
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid document ID', details: validation.error },
-        { status: 400 }
+      logRequest(request, 400, startTime, auth.userId);
+      return withCors(
+        NextResponse.json(
+          { error: 'Invalid document ID', details: validation.error },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -290,16 +348,24 @@ export async function DELETE(request: NextRequest) {
     // 3. Remove metadata from Firestore
     // 4. Remove embeddings from vector index
 
-    return NextResponse.json({
-      success: true,
-      message: `Document ${documentId} deleted successfully.`,
-    });
+    logRequest(request, 200, startTime, auth.userId);
+    return withCors(
+      NextResponse.json({
+        success: true,
+        message: `Document ${documentId} deleted successfully.`,
+      }),
+      request
+    );
 
   } catch (error) {
     console.error('Document deletion error:', error);
-    return errorResponse(
-      'Failed to delete document',
-      error instanceof Error ? error : undefined
+    logRequest(request, 500, startTime);
+    return withCors(
+      errorResponse(
+        'Failed to delete document',
+        error instanceof Error ? error : undefined
+      ),
+      request
     );
   }
 }
