@@ -52,7 +52,8 @@ export function LoginForm() {
 
   useEffect(() => {
     if (user && !authLoading) {
-      router.push(redirectTo);
+      // Use replace instead of push to prevent back button issues
+      router.replace(redirectTo);
     }
   }, [user, authLoading, router, redirectTo]);
 
@@ -60,10 +61,9 @@ export function LoginForm() {
     try {
       setIsLoading(true);
       await signInWithGoogle();
-      router.push(redirectTo);
+      // Don't manually redirect here - useEffect will handle it after user state updates
     } catch (error: any) {
       console.error('Google sign-in error:', error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -72,10 +72,9 @@ export function LoginForm() {
     try {
       setIsLoading(true);
       await signInWithMicrosoft();
-      router.push(redirectTo);
+      // Don't manually redirect here - useEffect will handle it after user state updates
     } catch (error: any) {
       console.error('Microsoft sign-in error:', error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -88,11 +87,10 @@ export function LoginForm() {
     }
     try {
       setIsLoading(true);
-      const result = await signInWithEmail(email, password);
-      if (result) {
-        router.push(redirectTo);
-      }
-    } finally {
+      await signInWithEmail(email, password);
+      // Don't manually redirect here - useEffect will handle it after user state updates
+    } catch (error: any) {
+      console.error('Email sign-in error:', error);
       setIsLoading(false);
     }
   };
@@ -113,11 +111,10 @@ export function LoginForm() {
     }
     try {
       setIsLoading(true);
-      const result = await signUpWithEmail(email, password, displayName);
-      if (result) {
-        router.push(redirectTo);
-      }
-    } finally {
+      await signUpWithEmail(email, password, displayName);
+      // Don't manually redirect here - useEffect will handle it after user state updates
+    } catch (error: any) {
+      console.error('Email sign-up error:', error);
       setIsLoading(false);
     }
   };
