@@ -2,13 +2,14 @@
  * NGO Directory Page Component
  * 
  * Public page displaying verified NGOs with search and filter capabilities.
+ * Features "NGO Near Me" location-based filtering.
  * No child photos or personal data shown publicly.
  * Only approved NGOs are displayed - fetched from Firestore.
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, COLLECTIONS } from '@/lib/firebase/config';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,14 +18,26 @@ import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
+interface NGOCoordinates {
+    lat: number;
+    lng: number;
+}
+
 interface NGO {
     id: string;
     userId: string;
     name: string;
     location: string;
+    coordinates?: NGOCoordinates;
     type: 'adoption' | 'child_care' | 'welfare';
     description?: string;
     status: string;
+    distance?: number; // Calculated distance in km
+}
+
+interface UserLocation {
+    lat: number;
+    lng: number;
 }
 
 const typeLabels = {
@@ -39,6 +52,45 @@ const typeIcons = {
     welfare: 'volunteer_activism',
 };
 
+// Demo coordinates for NGOs (in production, these would be stored in Firestore)
+const demoCoordinates: Record<string, NGOCoordinates> = {
+    'Mumbai, Maharashtra': { lat: 19.0760, lng: 72.8777 },
+    'Delhi, India': { lat: 28.6139, lng: 77.2090 },
+    'Bangalore, Karnataka': { lat: 12.9716, lng: 77.5946 },
+    'Chennai, Tamil Nadu': { lat: 13.0827, lng: 80.2707 },
+    'Kolkata, West Bengal': { lat: 22.5726, lng: 88.3639 },
+    'Hyderabad, Telangana': { lat: 17.3850, lng: 78.4867 },
+    'Pune, Maharashtra': { lat: 18.5204, lng: 73.8567 },
+    'Ahmedabad, Gujarat': { lat: 23.0225, lng: 72.5714 },
+    'Jaipur, Rajasthan': { lat: 26.9124, lng: 75.7873 },
+    'Lucknow, Uttar Pradesh': { lat: 26.8467, lng: 80.9462 },
+};
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ */
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+}
+
+/**
+ * Format distance for display
+ */
+function formatDistance(distance: number): string {
+    if (distance < 1) {
+        return 'Less than 1 km';
+    }
+    return `${distance} km away`;
+}
+
 export function NGODirectoryPage() {
     const router = useRouter();
     const { user, isAuthenticated } = useAuth();
@@ -50,6 +102,65 @@ export function NGODirectoryPage() {
     const [contactMessage, setContactMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    // Location-based state
+    const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+    const [locationLoading, setLocationLoading] = useState(false);
+    const [locationError, setLocationError] = useState<string | null>(null);
+    const [sortByDistance, setSortByDistance] = useState(false);
+    const [maxDistance, setMaxDistance] = useState<number | null>(null); // in km
+
+    // Get user's location
+    const getUserLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+            setLocationError('Geolocation is not supported by your browser');
+            toast.error('Geolocation is not supported by your browser');
+            return;
+        }
+
+        setLocationLoading(true);
+        setLocationError(null);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setUserLocation({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                });
+                setSortByDistance(true);
+                setLocationLoading(false);
+                toast.success('Location found! Showing NGOs near you.');
+            },
+            (error) => {
+                setLocationLoading(false);
+                let errorMessage = 'Unable to get your location';
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'Please allow location access to find NGOs near you';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'Location information is unavailable';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'Location request timed out';
+                        break;
+                }
+                setLocationError(errorMessage);
+                toast.error(errorMessage);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000, // 5 minutes cache
+            }
+        );
+    }, []);
+
+    // Clear location filter
+    const clearLocationFilter = useCallback(() => {
+        setSortByDistance(false);
+        setMaxDistance(null);
+    }, []);
+
     // Fetch approved NGOs from Firestore
     useEffect(() => {
         const q = query(
@@ -60,10 +171,14 @@ export function NGODirectoryPage() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const ngoList: NGO[] = [];
             snapshot.forEach((doc) => {
-                ngoList.push({
+                const data = doc.data();
+                const ngo: NGO = {
                     id: doc.id,
-                    ...doc.data(),
-                } as NGO);
+                    ...data,
+                    // Use stored coordinates or fallback to demo coordinates
+                    coordinates: data.coordinates || demoCoordinates[data.location] || null,
+                } as NGO;
+                ngoList.push(ngo);
             });
             setNgos(ngoList);
             setLoading(false);
@@ -75,12 +190,45 @@ export function NGODirectoryPage() {
         return () => unsubscribe();
     }, []);
 
-    const filteredNGOs = ngos.filter(ngo => {
-        const matchesSearch = ngo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            ngo.location.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesType = !selectedType || ngo.type === selectedType;
-        return matchesSearch && matchesType;
-    });
+    // Calculate distances when user location is available
+    const ngosWithDistance = React.useMemo(() => {
+        if (!userLocation) return ngos;
+
+        return ngos.map(ngo => {
+            if (ngo.coordinates) {
+                const distance = calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    ngo.coordinates.lat,
+                    ngo.coordinates.lng
+                );
+                return { ...ngo, distance };
+            }
+            return ngo;
+        });
+    }, [ngos, userLocation]);
+
+    // Filter and sort NGOs
+    const filteredNGOs = React.useMemo(() => {
+        let result = ngosWithDistance.filter(ngo => {
+            const matchesSearch = ngo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                ngo.location.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesType = !selectedType || ngo.type === selectedType;
+            const matchesDistance = !maxDistance || (ngo.distance !== undefined && ngo.distance <= maxDistance);
+            return matchesSearch && matchesType && matchesDistance;
+        });
+
+        // Sort by distance if enabled
+        if (sortByDistance && userLocation) {
+            result = [...result].sort((a, b) => {
+                if (a.distance === undefined) return 1;
+                if (b.distance === undefined) return -1;
+                return a.distance - b.distance;
+            });
+        }
+
+        return result;
+    }, [ngosWithDistance, searchQuery, selectedType, sortByDistance, userLocation, maxDistance]);
 
     const handleContactRequest = async () => {
         if (!showContactModal) return;
@@ -153,6 +301,26 @@ export function NGODirectoryPage() {
                             />
                         </div>
                         <div className="flex gap-2 flex-wrap">
+                            {/* Near Me Button */}
+                            <button
+                                onClick={sortByDistance ? clearLocationFilter : getUserLocation}
+                                disabled={locationLoading}
+                                className={cn(
+                                    'px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2',
+                                    sortByDistance
+                                        ? 'bg-gradient-to-r from-primary to-secondary text-white'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+                                    locationLoading && 'opacity-70 cursor-wait'
+                                )}
+                            >
+                                <Icon
+                                    name={locationLoading ? 'sync' : 'my_location'}
+                                    size="sm"
+                                    className={locationLoading ? 'animate-spin' : ''}
+                                />
+                                {locationLoading ? 'Locating...' : sortByDistance ? 'Near Me ✓' : 'Near Me'}
+                            </button>
+
                             <button
                                 onClick={() => setSelectedType(null)}
                                 className={cn(
@@ -180,6 +348,36 @@ export function NGODirectoryPage() {
                             ))}
                         </div>
                     </div>
+
+                    {/* Distance Filter (shown when location is available) */}
+                    {userLocation && sortByDistance && (
+                        <div className="flex items-center gap-4 mt-4 p-3 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl">
+                            <Icon name="near_me" className="text-primary" />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">Filter by distance:</span>
+                            <div className="flex gap-2 flex-wrap">
+                                {[10, 25, 50, 100, null].map((distance) => (
+                                    <button
+                                        key={distance ?? 'all'}
+                                        onClick={() => setMaxDistance(distance)}
+                                        className={cn(
+                                            'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                                            maxDistance === distance
+                                                ? 'bg-primary text-white'
+                                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        )}
+                                    >
+                                        {distance ? `${distance} km` : 'Any'}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={clearLocationFilter}
+                                className="ml-auto text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                                <Icon name="close" size="sm" />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -193,6 +391,22 @@ export function NGODirectoryPage() {
                 </div>
             </div>
 
+            {/* Location Error Notice */}
+            {locationError && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+                    <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800/50">
+                        <Icon name="location_off" className="text-red-600 dark:text-red-400" />
+                        <p className="text-sm text-red-800 dark:text-red-300">{locationError}</p>
+                        <button
+                            onClick={() => setLocationError(null)}
+                            className="ml-auto text-red-500 hover:text-red-700"
+                        >
+                            <Icon name="close" size="sm" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Loading State */}
             {loading && (
                 <div className="flex items-center justify-center py-12">
@@ -203,6 +417,14 @@ export function NGODirectoryPage() {
             {/* NGO Grid */}
             {!loading && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    {/* Results count */}
+                    {sortByDistance && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                            Showing {filteredNGOs.length} NGO{filteredNGOs.length !== 1 ? 's' : ''}
+                            {maxDistance ? ` within ${maxDistance} km` : ''} sorted by distance
+                        </p>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredNGOs.map((ngo) => (
                             <Card
@@ -219,9 +441,18 @@ export function NGODirectoryPage() {
                                     )}>
                                         <Icon name={typeIcons[ngo.type]} size="lg" />
                                     </div>
-                                    <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', typeLabels[ngo.type].color)}>
-                                        {typeLabels[ngo.type].label}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', typeLabels[ngo.type].color)}>
+                                            {typeLabels[ngo.type].label}
+                                        </span>
+                                        {/* Distance Badge */}
+                                        {ngo.distance !== undefined && sortByDistance && (
+                                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/20 to-secondary/20 text-primary dark:text-primary-light flex items-center gap-1">
+                                                <Icon name="near_me" size="sm" />
+                                                {formatDistance(ngo.distance)}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
@@ -258,8 +489,21 @@ export function NGODirectoryPage() {
 
                     {filteredNGOs.length === 0 && !loading && (
                         <div className="text-center py-12">
-                            <Icon name="search_off" size="2xl" className="text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                            <p className="text-gray-500 dark:text-gray-400">No NGOs found matching your criteria</p>
+                            <Icon name={sortByDistance ? 'location_off' : 'search_off'} size="2xl" className="text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                            <p className="text-gray-500 dark:text-gray-400">
+                                {sortByDistance && maxDistance
+                                    ? `No NGOs found within ${maxDistance} km. Try increasing the distance.`
+                                    : 'No NGOs found matching your criteria'}
+                            </p>
+                            {sortByDistance && maxDistance && (
+                                <Button
+                                    variant="secondary"
+                                    className="mt-4"
+                                    onClick={() => setMaxDistance(null)}
+                                >
+                                    Show All Distances
+                                </Button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -290,6 +534,14 @@ export function NGODirectoryPage() {
                                 <Icon name="close" />
                             </button>
                         </div>
+
+                        {/* Show distance in modal if available */}
+                        {showContactModal.distance !== undefined && sortByDistance && (
+                            <div className="flex items-center gap-2 text-sm text-primary dark:text-primary-light mb-4 p-2 bg-primary/10 rounded-lg">
+                                <Icon name="near_me" size="sm" />
+                                <span>{formatDistance(showContactModal.distance)} from your location</span>
+                            </div>
+                        )}
 
                         {!isAuthenticated ? (
                             <div className="text-center py-4">
